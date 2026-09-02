@@ -34,9 +34,10 @@ export class AiService {
       }
 
       return { response: result.response, cached: false };
-    } catch (err) {
+    } catch {
       return {
-        response: 'AI service is temporarily unavailable. Please try again later.',
+        response:
+          'AI service is temporarily unavailable. Please try again later.',
         degraded: true,
       };
     }

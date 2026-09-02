@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Param,
-  Body,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
@@ -233,7 +225,10 @@ export class WorkflowAdminController {
         success: { type: 'boolean', example: false },
         statusCode: { type: 'number', example: 400 },
         errorCode: { type: 'string', example: 'WORKFLOW_INVALID_STATE' },
-        message: { type: 'string', example: 'Workflow is not in a failed state' },
+        message: {
+          type: 'string',
+          example: 'Workflow is not in a failed state',
+        },
         timestamp: { type: 'string', format: 'date-time' },
         path: { type: 'string' },
       },
@@ -262,7 +257,10 @@ export class WorkflowAdminController {
         success: { type: 'boolean', example: false },
         statusCode: { type: 'number', example: 400 },
         errorCode: { type: 'string', example: 'WORKFLOW_INVALID_STATE' },
-        message: { type: 'string', example: 'Workflow cannot be cancelled in its current state' },
+        message: {
+          type: 'string',
+          example: 'Workflow cannot be cancelled in its current state',
+        },
         timestamp: { type: 'string', format: 'date-time' },
         path: { type: 'string' },
       },
@@ -302,7 +300,11 @@ export class WorkflowAdminController {
       return { message: 'Workflow compensation initiated', workflowId: id };
     } catch (error) {
       if (error instanceof ApiError) throw error;
-      throw new ApiError(HttpStatus.BAD_REQUEST, ApiErrorCode.COMPENSATION_FAILED, error.message);
+      throw new ApiError(
+        HttpStatus.BAD_REQUEST,
+        ApiErrorCode.COMPENSATION_FAILED,
+        error.message,
+      );
     }
   }
 
@@ -484,7 +486,11 @@ export class WorkflowAdminController {
       };
     } catch (error) {
       if (error instanceof ApiError) throw error;
-      throw new ApiError(HttpStatus.INTERNAL_SERVER_ERROR, ApiErrorCode.RECOVERY_FAILED, error.message);
+      throw new ApiError(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        ApiErrorCode.RECOVERY_FAILED,
+        error.message,
+      );
     }
   }
 
@@ -505,7 +511,11 @@ export class WorkflowAdminController {
       };
     } catch (error) {
       if (error instanceof ApiError) throw error;
-      throw new ApiError(HttpStatus.INTERNAL_SERVER_ERROR, ApiErrorCode.INTERNAL_SERVER_ERROR, error.message);
+      throw new ApiError(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        ApiErrorCode.INTERNAL_SERVER_ERROR,
+        error.message,
+      );
     }
   }
 
@@ -518,7 +528,11 @@ export class WorkflowAdminController {
       return health;
     } catch (error) {
       if (error instanceof ApiError) throw error;
-      throw new ApiError(HttpStatus.INTERNAL_SERVER_ERROR, ApiErrorCode.INTERNAL_SERVER_ERROR, error.message);
+      throw new ApiError(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        ApiErrorCode.INTERNAL_SERVER_ERROR,
+        error.message,
+      );
     }
   }
 
@@ -532,7 +546,11 @@ export class WorkflowAdminController {
       return { workflows };
     } catch (error) {
       if (error instanceof ApiError) throw error;
-      throw new ApiError(HttpStatus.INTERNAL_SERVER_ERROR, ApiErrorCode.INTERNAL_SERVER_ERROR, error.message);
+      throw new ApiError(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        ApiErrorCode.INTERNAL_SERVER_ERROR,
+        error.message,
+      );
     }
   }
 
@@ -560,7 +578,11 @@ export class WorkflowAdminController {
       return { message: 'Force compensation completed', workflowId: id };
     } catch (error) {
       if (error instanceof ApiError) throw error;
-      throw new ApiError(HttpStatus.BAD_REQUEST, ApiErrorCode.COMPENSATION_FAILED, error.message);
+      throw new ApiError(
+        HttpStatus.BAD_REQUEST,
+        ApiErrorCode.COMPENSATION_FAILED,
+        error.message,
+      );
     }
   }
 }

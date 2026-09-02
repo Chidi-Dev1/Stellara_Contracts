@@ -8,7 +8,6 @@ import {
   Matches,
   IsIn,
   IsBooleanString,
-  IsNumberString,
 } from 'class-validator';
 
 export class ConfigDto {
@@ -233,4 +232,14 @@ export class ConfigDto {
   @IsString()
   @IsOptional()
   CORS_ORIGINS?: string;
+
+  // ── Startup validation ──────────────────────────────────────────────────
+  @IsOptional()
+  @IsInt()
+  @Min(100)
+  STARTUP_CHECK_TIMEOUT_MS?: number;
+
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  STARTUP_FAIL_ON_DB_ERROR?: string;
 }

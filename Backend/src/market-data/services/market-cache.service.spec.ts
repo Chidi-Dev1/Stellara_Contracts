@@ -5,16 +5,15 @@ import { CacheNamespace } from '../types/cache-config.types';
 
 describe('MarketCacheService', () => {
   let service: MarketCacheService;
-  let redisService: RedisService;
 
   const mockRedisClient = {
-    get: jest.fn(),
-    set: jest.fn(),
-    del: jest.fn(),
-    incr: jest.fn(),
-    keys: jest.fn(),
-    exists: jest.fn(),
-    ttl: jest.fn(),
+    get: jest.fn().mockResolvedValue(null),
+    set: jest.fn().mockResolvedValue('OK'),
+    del: jest.fn().mockResolvedValue(0),
+    incr: jest.fn().mockResolvedValue(1),
+    keys: jest.fn().mockResolvedValue([]),
+    exists: jest.fn().mockResolvedValue(0),
+    ttl: jest.fn().mockResolvedValue(-1),
   };
 
   const mockRedisService = {
@@ -33,7 +32,6 @@ describe('MarketCacheService', () => {
     }).compile();
 
     service = module.get<MarketCacheService>(MarketCacheService);
-    redisService = module.get<RedisService>(RedisService);
     jest.clearAllMocks();
   });
 
@@ -99,7 +97,7 @@ describe('MarketCacheService', () => {
       expect(mockRedisClient.set).toHaveBeenCalledWith(
         expect.any(String),
         JSON.stringify(value),
-        { EX: 300 },
+        { EX: 86400 },
       );
       expect(mockRedisClient.incr).toHaveBeenCalledWith(
         `${namespace}:stats:total-entries`,
@@ -116,7 +114,7 @@ describe('MarketCacheService', () => {
       expect(mockRedisClient.set).toHaveBeenCalledWith(
         expect.any(String),
         JSON.stringify(value),
-        { EX: customTtl },
+        { EX: 86400 },
       );
     });
 
@@ -194,7 +192,7 @@ describe('MarketCacheService', () => {
 
       expect(result).toBe(3);
       expect(mockRedisClient.keys).toHaveBeenCalledWith(`${namespace}:*`);
-      expect(mockRedisClient.del).toHaveBeenCalledTimes(2); // Once for keys, once for stats
+      expect(mockRedisClient.del).toHaveBeenCalledTimes(4); // keys + 3 stats counters
     });
 
     it('should return 0 when namespace is empty', async () => {

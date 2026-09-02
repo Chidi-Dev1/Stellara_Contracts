@@ -1,4 +1,5 @@
 import { createClient } from 'redis';
+import { buildRedisUrl } from './redis.config';
 
 /**
  * Standalone Redis client used outside of the NestJS DI container
@@ -12,14 +13,11 @@ import { createClient } from 'redis';
 /** Minimal inline masker for use before DI is available. */
 function maskRedisUrl(url: string): string {
   // Replace password in redis://:password@host or redis://user:password@host
-  return url.replace(
-    /(rediss?:\/\/[^:@\s]*:)[^@\s]+(@)/gi,
-    '$1***$2',
-  );
+  return url.replace(/(rediss?:\/\/[^:@\s]*:)[^@\s]+(@)/gi, '$1***$2');
 }
 
 export const redisClient = createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379',
+  url: buildRedisUrl(),
 });
 
 redisClient.on('error', (err: Error) => {

@@ -11,8 +11,8 @@ const CIRCUIT_OPEN_AFTER_FAILURES = 5;
 const CIRCUIT_RESET_AFTER_MS = 30_000; // 30 seconds
 
 enum CircuitState {
-  CLOSED = 'CLOSED',   // Normal operation
-  OPEN = 'OPEN',       // Blocking calls, using fallback
+  CLOSED = 'CLOSED', // Normal operation
+  OPEN = 'OPEN', // Blocking calls, using fallback
   HALF_OPEN = 'HALF_OPEN', // Allowing one probe to test health
 }
 
@@ -21,9 +21,18 @@ enum CircuitState {
 // ---------------------------------------------------------------------------
 export const TOP_ASSETS: { code: string; issuer: string }[] = [
   { code: 'XLM', issuer: 'native' },
-  { code: 'USDC', issuer: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' },
-  { code: 'AQUA', issuer: 'GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA' },
-  { code: 'yXLM', issuer: 'GARDNV3Q7YGT4AKSDF25LT32YSCCW4EV22Y2TV3I2PU2MMXJTEDL5T55' },
+  {
+    code: 'USDC',
+    issuer: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+  },
+  {
+    code: 'AQUA',
+    issuer: 'GBNZILSTVQZ4R7IKQDGHYGY2QXL5QOFJYQMXPKWRRM5PAV7Y4M67AQUA',
+  },
+  {
+    code: 'yXLM',
+    issuer: 'GARDNV3Q7YGT4AKSDF25LT32YSCCW4EV22Y2TV3I2PU2MMXJTEDL5T55',
+  },
 ];
 
 // Last-resort hardcoded fallback — used only if no cache & horizon is down
@@ -109,7 +118,7 @@ export class MarketDataService {
     }
 
     // Cache miss or bypassed: fetch synchronously
-    return this.fetchAndCacheSnapshot(cacheKey, assetFilter, bypassCache);
+    return this.fetchAndCacheSnapshot(cacheKey, assetFilter);
   }
 
   /**
@@ -155,7 +164,9 @@ export class MarketDataService {
         CacheNamespace.PRICE_DATA,
       );
     }
-    return this.cacheService.invalidateNamespace(CacheNamespace.MARKET_SNAPSHOT);
+    return this.cacheService.invalidateNamespace(
+      CacheNamespace.MARKET_SNAPSHOT,
+    );
   }
 
   // =========================================================================
@@ -214,7 +225,6 @@ export class MarketDataService {
   private async fetchAndCacheSnapshot(
     cacheKey: string,
     assetFilter?: string[],
-    bypassCache = false,
   ): Promise<MarketSnapshotDto> {
     if (this.isCircuitOpen()) {
       this.logger.warn('Circuit open — returning last-known-good or fallback');
@@ -227,8 +237,16 @@ export class MarketDataService {
 
       // Cache and save last-known-good
       await Promise.all([
-        this.cacheService.set(cacheKey, snapshot, CacheNamespace.MARKET_SNAPSHOT),
-        this.cacheService.setLastKnownGood(cacheKey, CacheNamespace.MARKET_SNAPSHOT, snapshot),
+        this.cacheService.set(
+          cacheKey,
+          snapshot,
+          CacheNamespace.MARKET_SNAPSHOT,
+        ),
+        this.cacheService.setLastKnownGood(
+          cacheKey,
+          CacheNamespace.MARKET_SNAPSHOT,
+          snapshot,
+        ),
       ]);
 
       return { ...snapshot, cached: false, dataFreshness: 'fresh' };
@@ -245,7 +263,9 @@ export class MarketDataService {
     issuer: string,
   ): Promise<AssetPriceDto | null> {
     if (this.isCircuitOpen()) {
-      this.logger.warn(`Circuit open — returning last-known-good for ${assetCode}`);
+      this.logger.warn(
+        `Circuit open — returning last-known-good for ${assetCode}`,
+      );
       return this.cacheService.getLastKnownGood<AssetPriceDto>(
         cacheKey,
         CacheNamespace.PRICE_DATA,
@@ -259,7 +279,11 @@ export class MarketDataService {
       if (priceData) {
         await Promise.all([
           this.cacheService.set(cacheKey, priceData, CacheNamespace.PRICE_DATA),
-          this.cacheService.setLastKnownGood(cacheKey, CacheNamespace.PRICE_DATA, priceData),
+          this.cacheService.setLastKnownGood(
+            cacheKey,
+            CacheNamespace.PRICE_DATA,
+            priceData,
+          ),
         ]);
       }
       return priceData;
@@ -280,15 +304,17 @@ export class MarketDataService {
     if (refreshLocks.get(cacheKey)) return; // Prevent stampede
     refreshLocks.set(cacheKey, true);
 
-    setImmediate(async () => {
-      try {
-        await this.fetchAndCacheSnapshot(cacheKey, assetFilter);
-        this.logger.debug(`Background refresh completed: ${cacheKey}`);
-      } catch (err) {
-        this.logger.error(`Background refresh failed: ${err.message}`);
-      } finally {
-        refreshLocks.delete(cacheKey);
-      }
+    setImmediate(() => {
+      void (async () => {
+        try {
+          await this.fetchAndCacheSnapshot(cacheKey, assetFilter);
+          this.logger.debug(`Background refresh completed: ${cacheKey}`);
+        } catch (err) {
+          this.logger.error(`Background refresh failed: ${err.message}`);
+        } finally {
+          refreshLocks.delete(cacheKey);
+        }
+      })();
     });
   }
 
@@ -300,15 +326,17 @@ export class MarketDataService {
     if (refreshLocks.get(cacheKey)) return;
     refreshLocks.set(cacheKey, true);
 
-    setImmediate(async () => {
-      try {
-        await this.fetchAndCacheAssetPrice(cacheKey, assetCode, issuer);
-        this.logger.debug(`Background price refresh completed: ${assetCode}`);
-      } catch (err) {
-        this.logger.error(`Background price refresh failed: ${err.message}`);
-      } finally {
-        refreshLocks.delete(cacheKey);
-      }
+    setImmediate(() => {
+      void (async () => {
+        try {
+          await this.fetchAndCacheAssetPrice(cacheKey, assetCode, issuer);
+          this.logger.debug(`Background price refresh completed: ${assetCode}`);
+        } catch (err) {
+          this.logger.error(`Background price refresh failed: ${err.message}`);
+        } finally {
+          refreshLocks.delete(cacheKey);
+        }
+      })();
     });
   }
 
@@ -333,24 +361,23 @@ export class MarketDataService {
       assets.map((a) => this.fetchAssetPrice(a.code, a.issuer)),
     );
 
-    const resolvedAssets: AssetPriceDto[] = priceResults
-      .map((r, i) => {
-        if (r.status === 'fulfilled' && r.value) return r.value;
-        // Single asset failed — use hardcoded default as individual fallback
-        this.logger.warn(
-          `Could not fetch price for ${assets[i].code}, using last-known or 0`,
-        );
-        return {
-          code: assets[i].code,
-          issuer: assets[i].issuer,
-          priceUSD: 0,
-          change24h: 0,
-          volume24h: 0,
-          marketCap: 0,
-          dataFreshness: 'unavailable',
-          source: 'Horizon (partial failure)',
-        } as AssetPriceDto;
-      });
+    const resolvedAssets: AssetPriceDto[] = priceResults.map((r, i) => {
+      if (r.status === 'fulfilled' && r.value) return r.value;
+      // Single asset failed — use hardcoded default as individual fallback
+      this.logger.warn(
+        `Could not fetch price for ${assets[i].code}, using last-known or 0`,
+      );
+      return {
+        code: assets[i].code,
+        issuer: assets[i].issuer,
+        priceUSD: 0,
+        change24h: 0,
+        volume24h: 0,
+        marketCap: 0,
+        dataFreshness: 'unavailable',
+        source: 'Horizon (partial failure)',
+      } as AssetPriceDto;
+    });
 
     return {
       assets: resolvedAssets,

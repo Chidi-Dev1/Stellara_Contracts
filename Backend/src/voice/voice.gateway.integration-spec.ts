@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import io, { Socket } from 'socket.io-client';
+import io from 'socket.io-client';
 import { VoiceModule } from './voice.module';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
@@ -15,7 +15,12 @@ describe('VoiceGateway (Integration)', () => {
       imports: [
         ConfigModule.forRoot({
           envFilePath: '.env.test',
-          load: [() => ({ JWT_SECRET: 'test-secret', CORS_ORIGINS: 'http://localhost:3000' })],
+          load: [
+            () => ({
+              JWT_SECRET: 'test-secret',
+              CORS_ORIGINS: 'http://localhost:3000',
+            }),
+          ],
         }),
         VoiceModule,
       ],
@@ -26,7 +31,10 @@ describe('VoiceGateway (Integration)', () => {
 
     await app.listen(3002);
 
-    validToken = jwtService.sign({ sub: 'test-user-123', userId: 'test-user-123' });
+    validToken = jwtService.sign({
+      sub: 'test-user-123',
+      userId: 'test-user-123',
+    });
   });
 
   afterAll(async () => {

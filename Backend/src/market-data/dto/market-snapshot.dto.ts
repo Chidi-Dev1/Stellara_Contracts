@@ -1,11 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsString,
-  IsNumber,
-  IsOptional,
-  IsArray,
-  IsEnum,
-} from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsArray } from 'class-validator';
 
 export class AssetPriceDto {
   @ApiProperty({ description: 'Asset code (e.g., XLM, USDC)' })
@@ -57,7 +51,9 @@ export class MarketSnapshotDto {
   @IsOptional()
   cached?: boolean;
 
-  @ApiPropertyOptional({ description: 'Data freshness status (e.g., fresh, stale)' })
+  @ApiPropertyOptional({
+    description: 'Data freshness status (e.g., fresh, stale)',
+  })
   @IsOptional()
   @IsString()
   dataFreshness?: string;

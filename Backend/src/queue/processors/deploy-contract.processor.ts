@@ -7,12 +7,19 @@ import { JobResult } from '../types/job.types';
 import { ValidationError, TransientError } from '../types/errors';
 import { MetricsService } from '../../observability/services/metrics.service';
 import { QueueJobTracingWrapper } from '../../observability/middleware/queue-job-tracing.wrapper';
+import { QueueIdempotencyGuard } from '../queue-idempotency.guard';
 
 interface DeployContractData {
   contractName: string;
   contractCode: string;
   network: string;
   initializer?: string;
+  /**
+   * Optional idempotency key passed through the pipeline. The processor
+   * validates it before execution to guard against duplicate processing
+   * when a job is re-dispatched or the guard layer was bypassed.
+   */
+  idempotencyKey?: string;
 }
 
 @Processor('deploy-contract')
@@ -22,6 +29,7 @@ export class DeployContractProcessor {
   constructor(
     @InjectQueue('failed-jobs') private readonly dlqQueue: Queue,
     private readonly queueJobTracingWrapper: QueueJobTracingWrapper,
+    private readonly idempotencyGuard: QueueIdempotencyGuard,
     @Optional() @Inject(MetricsService) private readonly metrics?: MetricsService,
   ) {}
 
@@ -30,9 +38,28 @@ export class DeployContractProcessor {
     // Wrap the actual processing in the tracing wrapper
     const wrappedProcess = this.queueJobTracingWrapper.wrapProcessor(
       async (jobToProcess: Job<DeployContractData>) => {
+        // Validate idempotency key before processing. If the job carries a
+        // key that was already claimed by another worker, skip execution.
+        const providedKey = jobToProcess.data.idempotencyKey;
+        if (providedKey) {
+          const existing = await this.idempotencyGuard.isDuplicate(providedKey);
+          if (existing.isDuplicate && existing.jobId !== jobToProcess.id) {
+            this.logger.warn(
+              `Skipping duplicate deploy-contract job ${jobToProcess.id} — ` +
+              `idempotency key already claimed by job ${existing.jobId}`,
+            );
+            return {
+              success: true,
+              data: { skipped: true, reason: 'duplicate', claimedBy: existing.jobId },
+            };
+          }
+        }
+
         const { contractName, contractCode, network, initializer } = jobToProcess.data;
         const start = Date.now();
-        const correlationId = (jobToProcess.data as any)?.correlationId || 'deploy-contract-' + (jobToProcess as any).id;
+        const correlationId =
+          (jobToProcess.data as any)?.correlationId ||
+          'deploy-contract-' + (jobToProcess as any).id;
 
         this.logger.log(
           `Processing deploy-contract job ${jobToProcess.id}: ${contractName} on ${network}`,
@@ -54,7 +81,9 @@ export class DeployContractProcessor {
 
           const compilationResult = await this.compileContract(contractCode);
           if (!compilationResult.success) {
-            throw new TransientError(`Compilation failed: ${compilationResult.error}`);
+            throw new TransientError(
+              `Compilation failed: ${compilationResult.error}`,
+            );
           }
 
           await jobToProcess.progress(50);
@@ -76,7 +105,11 @@ export class DeployContractProcessor {
           await jobToProcess.progress(100);
 
           const duration = (Date.now() - start) / 1000;
-          this.metrics?.recordJobCompleted('deploy-contract', duration, correlationId);
+          this.metrics?.recordJobCompleted(
+            'deploy-contract',
+            duration,
+            correlationId,
+          );
 
           return {
             success: true,
@@ -90,7 +123,12 @@ export class DeployContractProcessor {
           };
         } catch (error) {
           const duration = (Date.now() - start) / 1000;
-          this.metrics?.recordJobFailed('deploy-contract', duration, error.constructor.name, correlationId);
+          this.metrics?.recordJobFailed(
+            'deploy-contract',
+            duration,
+            error.constructor.name,
+            correlationId,
+          );
           this.logger.error(
             `Failed to deploy contract: ${error.message}`,
             error.stack,

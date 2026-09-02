@@ -1,5 +1,5 @@
-import { Module, OnModuleInit, Inject } from '@nestjs/common';
-import { BullModule, InjectQueue, getQueueToken } from '@nestjs/bull';
+import { Module, OnModuleInit } from '@nestjs/common';
+import { BullModule, InjectQueue } from '@nestjs/bull';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { QueueService } from './services/queue.service';
 import { QueueIdempotencyGuard } from './queue-idempotency.guard';
@@ -12,17 +12,20 @@ import { RedisModule } from '../redis/redis.module';
 import { ObservabilityModule } from '../observability/observability.module';
 import { QueueJobTracingWrapper } from '../observability/middleware/queue-job-tracing.wrapper';
 import type { Queue } from 'bull';
+import { buildBullRedisOptions } from '../redis/redis.config';
 
 @Module({
   imports: [
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        redis: {
-          host: configService.get('REDIS_HOST') || 'localhost',
-          port: configService.get('REDIS_PORT') || 6379,
-          db: configService.get('REDIS_QUEUE_DB') || 1,
-        },
+        redis: buildBullRedisOptions({
+          REDIS_URL: configService.get('REDIS_URL'),
+          REDIS_HOST: configService.get('REDIS_HOST'),
+          REDIS_PORT: configService.get('REDIS_PORT'),
+          REDIS_PASSWORD: configService.get('REDIS_PASSWORD'),
+          REDIS_QUEUE_DB: configService.get('REDIS_QUEUE_DB'),
+        }),
         defaultJobOptions: {
           attempts: 3,
           backoff: {
@@ -59,13 +62,23 @@ export class QueueModule implements OnModuleInit {
     private readonly queueJobTracingWrapper: QueueJobTracingWrapper,
     @InjectQueue('deploy-contract') private readonly deployContractQueue: Queue,
     @InjectQueue('process-tts') private readonly processTtsQueue: Queue,
-    @InjectQueue('index-market-news') private readonly indexMarketNewsQueue: Queue,
+    @InjectQueue('index-market-news')
+    private readonly indexMarketNewsQueue: Queue,
   ) {}
 
-  async onModuleInit() {
+  onModuleInit() {
     // Wrap queues for metrics
-    this.queueJobTracingWrapper.wrapQueueMetrics(this.deployContractQueue, 'deploy-contract');
-    this.queueJobTracingWrapper.wrapQueueMetrics(this.processTtsQueue, 'process-tts');
-    this.queueJobTracingWrapper.wrapQueueMetrics(this.indexMarketNewsQueue, 'index-market-news');
+    this.queueJobTracingWrapper.wrapQueueMetrics(
+      this.deployContractQueue,
+      'deploy-contract',
+    );
+    this.queueJobTracingWrapper.wrapQueueMetrics(
+      this.processTtsQueue,
+      'process-tts',
+    );
+    this.queueJobTracingWrapper.wrapQueueMetrics(
+      this.indexMarketNewsQueue,
+      'index-market-news',
+    );
   }
 }
